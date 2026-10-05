@@ -5,6 +5,18 @@ Built with Python, FastAPI, and SQLite. All data stays on your PC.
 
 ---
 
+## Preview
+
+![Dashboard](docs/demo/screenshot-dashboard.png)
+
+![Monthly Report — September 2026](docs/demo/screenshot-monthly-report.png)
+
+![Monthly Report — September 2026 (detail)](docs/demo/screenshot-monthly-report-1.png)
+
+[Monthly Report — September 2026 (PDF)](<docs/demo/Monthly Report — September 2026 — Expense Monitor.pdf>)
+
+---
+
 ## Installation (one-time, requires internet)
 
 1. Install **Python 3.10+** from https://python.org if not already installed.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import calendar
 from pathlib import Path
@@ -9,7 +10,7 @@ from contextlib import contextmanager
 from typing import Dict, List, Optional
 
 DB_DIR = Path(__file__).parent / "data"
-DB_PATH = DB_DIR / "expense_monitor.db"
+DB_PATH = Path(os.environ.get("EM_DB", str(DB_DIR / "expense_monitor.db")))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS accounts (
