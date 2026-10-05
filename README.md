@@ -234,3 +234,11 @@ After running `setup.bat` once (requires internet), the app runs **fully offline
 2. Run: `venv\Scripts\python -c "import database as db; db.init_db(); conn=__import__('sqlite3').connect('data/expense_monitor.db'); conn.execute(\"DELETE FROM settings WHERE key='pin_hash'\"); conn.commit(); conn.close(); print('PIN cleared')"`
 3. Restart the app and set a new PIN on the first-visit screen.
    Your transactions and account data are untouched.
+
+---
+
+## Acknowledgements
+
+This app was built with the assistance of [Claude](https://claude.ai) by Anthropic.
+
+The full specification used to build it is in [`prompt.md`](prompt.md).
