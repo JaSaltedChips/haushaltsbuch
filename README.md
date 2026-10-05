@@ -7,11 +7,13 @@ Built with Python, FastAPI, and SQLite. All data stays on your PC.
 
 ## Preview
 
-![Dashboard](docs/demo/screenshot-dashboard.png)
+<img src="docs/demo/screenshot-dashboard.png" alt="Dashboard" width="700">
 
-![Monthly Report — September 2026](docs/demo/screenshot-monthly-report.png)
+<img src="docs/demo/screenshot-monthly-report.png" alt="Monthly Report — September 2026" width="700">
 
-![Monthly Report — September 2026 (detail)](docs/demo/screenshot-monthly-report-1.png)
+<img src="docs/demo/screenshot-monthly-report-1.png" alt="Monthly Report — September 2026 (detail)" width="700">
+
+The monthly report can be saved as a PDF directly from the browser using **Print → Save as PDF**. Charts, totals, and transaction tables are all print-optimised and paginate cleanly. The PDF below was exported from the demo database for September 2026.
 
 [Monthly Report — September 2026 (PDF)](<docs/demo/Monthly Report — September 2026 — Expense Monitor.pdf>)
 
