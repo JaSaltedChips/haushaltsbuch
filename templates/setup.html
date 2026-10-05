@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}Setup — Expense Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Setup</h1>
+  <p class="text-muted">Manage accounts, categories, and app settings.</p>
+</div>
+
+<!-- Settings -->
+<div class="section">
+  <h2>App Settings</h2>
+  <form id="settings-form" class="form-inline">
+    <div class="form-row">
+      <label>App Title
+        <input type="text" id="app-title" value="{{ settings.app_title }}" maxlength="60">
+      </label>
+      <label>Tracking Start Date
+        <input type="date" id="tracking-start" value="{{ settings.tracking_start_date }}">
+      </label>
+      <button type="submit" class="btn btn-primary">Save Settings</button>
+    </div>
+  </form>
+</div>
+
+<!-- Accounts -->
+<div class="section">
+  <div class="section-header">
+    <h2>Accounts</h2>
+    <button class="btn btn-primary" onclick="openModal('add-account-modal')">+ Add Account</button>
+  </div>
+  <div class="table-wrapper">
+    <table class="data-table" id="accounts-table">
+      <thead>
+        <tr>
+          <th>Label</th>
+          <th>Type</th>
+          <th>Opening Balance</th>
+          <th>Opening Date</th>
+          <th>Current Balance</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for acc in accounts %}
+        <tr class="{% if not acc.is_active %}row-inactive{% endif %}">
+          <td><strong>{{ acc.label }}</strong></td>
+          <td>
+            <span class="badge badge-{{ acc.account_type }}">
+              {{ acc.account_type.replace('_', ' ') }}
+            </span>
+          </td>
+          <td>{{ acc.opening_balance_cents | eur }}</td>
+          <td>{{ acc.opening_date }}</td>
+          <td class="{% if acc.account_type == 'credit_card' %}balance-owed{% elif acc.balance_cents < 0 %}balance-negative{% else %}balance-positive{% endif %}">
+            {{ acc.balance_cents | eur }}
+            {% if acc.account_type == 'credit_card' %}<span class="owed-badge">OWED</span>{% endif %}
+          </td>
+          <td>{{ 'Active' if acc.is_active else 'Inactive' }}</td>
+          <td class="actions">
+            <button class="btn btn-sm" onclick='editAccount({{ acc | tojson }})'>Edit</button>
+            {% if acc.is_active %}
+            <button class="btn btn-sm btn-danger" onclick="deactivateAccount({{ acc.id }})">Deactivate</button>
+            {% else %}
+            <button class="btn btn-sm" onclick="reactivateAccount({{ acc.id }})">Reactivate</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="text-muted small">Accounts with transactions cannot be deleted — deactivate them instead.</p>
+</div>
+
+<!-- Expense Categories -->
+<div class="section">
+  <div class="section-header">
+    <h2>Expense Categories</h2>
+    <button class="btn btn-primary" onclick="openAddCategory('expense')">+ Add</button>
+  </div>
+  <div class="tag-list" id="expense-cats">
+    {% for cat in expense_cats %}
+    <span class="tag">
+      {{ cat.name }}
+      <button class="tag-delete" onclick="deleteCategory({{ cat.id }}, '{{ cat.name | e }}')" title="Delete">×</button>
+    </span>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Income Categories -->
+<div class="section">
+  <div class="section-header">
+    <h2>Income Categories</h2>
+    <button class="btn btn-primary" onclick="openAddCategory('income')">+ Add</button>
+  </div>
+  <div class="tag-list" id="income-cats">
+    {% for cat in income_cats %}
+    <span class="tag tag-income">
+      {{ cat.name }}
+      <button class="tag-delete" onclick="deleteCategory({{ cat.id }}, '{{ cat.name | e }}')" title="Delete">×</button>
+    </span>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Security -->
+<div class="section">
+  <div class="section-header">
+    <h2>Security</h2>
+    <button class="btn btn-primary" onclick="openModal('change-pin-modal')">Change PIN</button>
+  </div>
+  <p class="text-muted small">Your PIN is stored as a secure hash. Sessions expire after {{ settings.get('session_hours', '8') }} hours or when the app restarts.</p>
+</div>
+
+<!-- Add / Edit Account Modal -->
+<div class="modal-backdrop hidden" id="add-account-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="account-modal-title">Add Account</h3>
+      <button class="modal-close" onclick="closeModal('add-account-modal')">×</button>
+    </div>
+    <form id="account-form" onsubmit="saveAccount(event)">
+      <input type="hidden" id="account-id">
+      <div class="form-group">
+        <label>Label <span class="required">*</span>
+          <input type="text" id="account-label" required maxlength="40" placeholder="e.g. BANK-1, SPARKASSE">
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Type <span class="required">*</span>
+          <select id="account-type" required>
+            <option value="bank">Bank Account</option>
+            <option value="cash">Cash Wallet</option>
+            <option value="credit_card">Credit Card (liability)</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Opening Balance (EUR)
+          <input type="number" id="account-opening-eur" step="0.01" min="0" value="0.00" placeholder="0.00">
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Opening Date
+          <input type="date" id="account-opening-date" value="{{ settings.tracking_start_date }}">
+        </label>
+      </div>
+      <div class="credit-card-note hidden" id="card-note">
+        <p class="info-box">⚠️ Credit card balance represents the <strong>amount owed</strong>. Enter the current outstanding balance as the opening balance.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" onclick="closeModal('add-account-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Account</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Change PIN Modal -->
+<div class="modal-backdrop hidden" id="change-pin-modal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>Change PIN</h3>
+      <button class="modal-close" onclick="closeModal('change-pin-modal')">×</button>
+    </div>
+    <form onsubmit="changePin(event)">
+      <div class="form-group">
+        <label>Current PIN
+          <input type="password" id="cp-current" autocomplete="current-password" required minlength="4" placeholder="••••">
+        </label>
+      </div>
+      <div class="form-group">
+        <label>New PIN
+          <input type="password" id="cp-new" autocomplete="new-password" required minlength="4" placeholder="••••">
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Confirm New PIN
+          <input type="password" id="cp-confirm" autocomplete="new-password" required minlength="4" placeholder="••••">
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" onclick="closeModal('change-pin-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Category Modal -->
+<div class="modal-backdrop hidden" id="add-category-modal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>Add Category</h3>
+      <button class="modal-close" onclick="closeModal('add-category-modal')">×</button>
+    </div>
+    <form onsubmit="saveCategory(event)">
+      <input type="hidden" id="cat-type">
+      <div class="form-group">
+        <label>Category Name <span class="required">*</span>
+          <input type="text" id="cat-name" required maxlength="60" placeholder="e.g. Restaurants">
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" onclick="closeModal('add-category-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('settings-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const r = await fetch('/api/settings', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      app_title: document.getElementById('app-title').value,
+      tracking_start_date: document.getElementById('tracking-start').value,
+    })
+  });
+  if (r.ok) showToast('Settings saved', 'success'); else showToast('Error saving settings', 'error');
+});
+
+document.getElementById('account-type').addEventListener('change', function() {
+  document.getElementById('card-note').classList.toggle('hidden', this.value !== 'credit_card');
+});
+
+function editAccount(acc) {
+  document.getElementById('account-modal-title').textContent = 'Edit Account';
+  document.getElementById('account-id').value = acc.id;
+  document.getElementById('account-label').value = acc.label;
+  document.getElementById('account-type').value = acc.account_type;
+  document.getElementById('account-opening-eur').value = (acc.opening_balance_cents / 100).toFixed(2);
+  document.getElementById('account-opening-date').value = acc.opening_date;
+  document.getElementById('card-note').classList.toggle('hidden', acc.account_type !== 'credit_card');
+  openModal('add-account-modal');
+}
+
+async function saveAccount(e) {
+  e.preventDefault();
+  const id = document.getElementById('account-id').value;
+  const cents = Math.round(parseFloat(document.getElementById('account-opening-eur').value || 0) * 100);
+  const body = {
+    label: document.getElementById('account-label').value.trim().toUpperCase(),
+    account_type: document.getElementById('account-type').value,
+    opening_balance_cents: cents,
+    opening_date: document.getElementById('account-opening-date').value,
+  };
+  const url = id ? `/api/accounts/${id}` : '/api/accounts';
+  const method = id ? 'PUT' : 'POST';
+  const r = await fetch(url, {method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  if (r.ok) { closeModal('add-account-modal'); location.reload(); }
+  else { const d = await r.json(); showToast(d.detail || 'Error', 'error'); }
+}
+
+function openAddCategory(type) {
+  document.getElementById('cat-type').value = type;
+  document.getElementById('cat-name').value = '';
+  openModal('add-category-modal');
+}
+
+async function saveCategory(e) {
+  e.preventDefault();
+  const body = {name: document.getElementById('cat-name').value.trim(), transaction_type: document.getElementById('cat-type').value};
+  const r = await fetch('/api/categories', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  if (r.ok) { closeModal('add-category-modal'); location.reload(); }
+  else { const d = await r.json(); showToast(d.detail || 'Error', 'error'); }
+}
+
+async function deleteCategory(id, name) {
+  if (!confirm(`Delete category "${name}"? This fails if any transactions use it.`)) return;
+  const r = await fetch(`/api/categories/${id}`, {method:'DELETE'});
+  if (r.ok) location.reload(); else { const d = await r.json(); showToast(d.detail || 'Error', 'error'); }
+}
+
+async function deactivateAccount(id) {
+  if (!confirm('Deactivate this account? It will be hidden from entry forms but data is kept.')) return;
+  const r = await fetch(`/api/accounts/${id}?deactivate=true`, {method:'DELETE'});
+  if (r.ok) location.reload(); else { const d = await r.json(); showToast(d.detail || 'Error', 'error'); }
+}
+
+async function reactivateAccount(id) {
+  const r = await fetch(`/api/accounts/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({is_active:1})});
+  if (r.ok) location.reload(); else { const d = await r.json(); showToast(d.detail || 'Error', 'error'); }
+}
+
+async function changePin(e) {
+  e.preventDefault();
+  const body = {
+    current_pin: document.getElementById('cp-current').value,
+    new_pin:     document.getElementById('cp-new').value,
+    confirm_pin: document.getElementById('cp-confirm').value,
+  };
+  const r = await fetch('/api/auth/change-pin', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (r.ok) {
+    closeModal('change-pin-modal');
+    showToast('PIN changed successfully', 'success');
+  } else {
+    const d = await r.json();
+    showToast(d.detail || 'Error changing PIN', 'error');
+  }
+}
+</script>
+{% endblock %}

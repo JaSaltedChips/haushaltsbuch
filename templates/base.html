@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Expense Monitor{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-logo">💶</span>
+      <span class="sidebar-title">Expense Monitor</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">
+        <span class="nav-icon">🏠</span> Dashboard
+      </a></li>
+      <li><a href="/entry" class="nav-link {% if request.url.path == '/entry' %}active{% endif %}">
+        <span class="nav-icon">✏️</span> Daily Entry
+      </a></li>
+      <li><a href="/transactions" class="nav-link {% if request.url.path == '/transactions' %}active{% endif %}">
+        <span class="nav-icon">📋</span> Transactions
+      </a></li>
+      <li><a href="/report" class="nav-link {% if request.url.path == '/report' %}active{% endif %}">
+        <span class="nav-icon">📊</span> Monthly Report
+      </a></li>
+      <li class="nav-separator"></li>
+      <li><a href="/setup" class="nav-link {% if request.url.path == '/setup' %}active{% endif %}">
+        <span class="nav-icon">⚙️</span> Setup
+      </a></li>
+      <li><a href="/export" class="nav-link {% if request.url.path == '/export' %}active{% endif %}">
+        <span class="nav-icon">💾</span> Backup / Export
+      </a></li>
+      <li class="nav-separator"></li>
+      <li><a href="/logout" class="nav-link">
+        <span class="nav-icon">🔒</span> Lock
+      </a></li>
+    </ul>
+  </nav>
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

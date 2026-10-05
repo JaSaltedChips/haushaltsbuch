@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if pin_set %}Unlock{% else %}Set PIN{% endif %} — Expense Monitor</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .login-wrap { width: 100%; max-width: 360px; padding: 1rem; }
+    .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 24px rgba(0,0,0,.10); padding: 2.5rem 2rem; }
+    .login-logo { text-align: center; font-size: 2.8rem; margin-bottom: .4rem; }
+    .login-title { text-align: center; font-size: 1.25rem; font-weight: 700; margin-bottom: .2rem; }
+    .login-sub { text-align: center; color: var(--text-muted); font-size: .85rem; margin-bottom: 1.75rem; }
+    .pin-input { font-size: 1.5rem; letter-spacing: .35em; text-align: center; padding: .55rem .6rem; width: 100%; border: 1px solid var(--border); border-radius: 6px; }
+    .pin-input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+    .login-btn { width: 100%; padding: .65rem; font-size: 1rem; margin-top: 1.1rem; justify-content: center; }
+    .login-error { background: #fef2f2; border: 1px solid #fecaca; color: var(--danger); border-radius: 6px; padding: .6rem .9rem; font-size: .85rem; margin-bottom: 1.1rem; text-align: center; }
+    .login-hint { text-align: center; color: var(--text-muted); font-size: .78rem; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">💶</div>
+      <div class="login-title">Expense Monitor</div>
+      <div class="login-sub">
+        {% if pin_set %}Enter your PIN to continue{% else %}Choose a PIN to protect your data{% endif %}
+      </div>
+
+      {% if error %}
+      <div class="login-error">{{ error }}</div>
+      {% endif %}
+
+      <form method="POST" action="/login" autocomplete="off">
+        <label style="display:flex;flex-direction:column;gap:.4rem;font-size:.83rem;font-weight:500;color:var(--text-muted);">
+          {% if pin_set %}PIN{% else %}New PIN (4 or more characters){% endif %}
+          <input class="pin-input" type="password" name="pin" inputmode="numeric"
+                 autocomplete="{% if pin_set %}current-password{% else %}new-password{% endif %}"
+                 autofocus required minlength="4" maxlength="20" placeholder="••••">
+        </label>
+        <button class="btn btn-primary login-btn" type="submit">
+          {% if pin_set %}Unlock{% else %}Set PIN &amp; Continue{% endif %}
+        </button>
+      </form>
+
+      {% if pin_set %}
+      <p class="login-hint">Session expires after {{ session_hours }} hours or on app restart.</p>
+      {% else %}
+      <p class="login-hint">You can change this PIN later from the Setup page.</p>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

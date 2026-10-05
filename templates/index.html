@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Expense Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <span class="text-muted">{{ today }}</span>
+</div>
+
+<div class="cards-grid">
+  {% for acc in accounts %}
+  <div class="card account-card {% if acc.account_type == 'credit_card' %}card-liability{% endif %}">
+    <div class="card-label">{{ acc.label }}</div>
+    <div class="card-type text-muted">{{ acc.account_type.replace('_', ' ') }}</div>
+    <div class="card-balance {% if acc.account_type == 'credit_card' %}balance-owed{% elif acc.balance_cents < 0 %}balance-negative{% else %}balance-positive{% endif %}">
+      {% if acc.account_type == 'credit_card' %}
+        {{ acc.balance_cents | eur }} <span class="owed-badge">OWED</span>
+      {% else %}
+        {{ acc.balance_cents | eur }}
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% set asset_total = namespace(v=0) %}
+{% set card_total = namespace(v=0) %}
+{% for acc in accounts %}
+  {% if acc.account_type != 'credit_card' %}{% set asset_total.v = asset_total.v + acc.balance_cents %}{% endif %}
+  {% if acc.account_type == 'credit_card' %}{% set card_total.v = card_total.v + acc.balance_cents %}{% endif %}
+{% endfor %}
+
+<div class="summary-bar">
+  <div class="summary-item">
+    <span class="text-muted">Total Assets</span>
+    <strong class="balance-positive">{{ asset_total.v | eur }}</strong>
+  </div>
+  <div class="summary-item">
+    <span class="text-muted">Card Owed</span>
+    <strong class="balance-owed">{{ card_total.v | eur }}</strong>
+  </div>
+  <div class="summary-item">
+    <span class="text-muted">Net Position</span>
+    <strong class="{% if asset_total.v - card_total.v >= 0 %}balance-positive{% else %}balance-negative{% endif %}">
+      {{ (asset_total.v - card_total.v) | eur }}
+    </strong>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-header">
+    <h2>Recent Transactions</h2>
+    <a href="/entry" class="btn btn-primary">+ New Entry</a>
+  </div>
+  {% if recent %}
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Amount</th>
+          <th>From</th>
+          <th>To</th>
+          <th>Category</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in recent %}
+        <tr>
+          <td>{{ t.date }}</td>
+          <td><span class="badge badge-{{ t.transaction_type | lower }}">{{ t.transaction_type }}</span></td>
+          <td class="amount">{{ t.amount_cents | eur }}</td>
+          <td>{{ t.from_account_label or '—' }}</td>
+          <td>{{ t.to_account_label or '—' }}</td>
+          <td>{{ t.category_name or '—' }}</td>
+          <td>{{ t.description or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <a href="/transactions" class="link-more">View all transactions →</a>
+  {% else %}
+  <p class="text-muted empty-state">No transactions yet. <a href="/entry">Add your first entry.</a></p>
+  {% endif %}
+</div>
+{% endblock %}

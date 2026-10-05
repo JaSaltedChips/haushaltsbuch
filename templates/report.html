@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Monthly Report — {{ month_name }} {{ year }} — Expense Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header no-print">
+  <h1>Monthly Report</h1>
+  <button class="btn btn-primary" onclick="window.print()">🖨 Print / Save as PDF</button>
+</div>
+
+<!-- Month Selector -->
+<div class="month-nav no-print">
+  {% set prev_month = month - 1 if month > 1 else 12 %}
+  {% set prev_year = year if month > 1 else year - 1 %}
+  {% set next_month = month + 1 if month < 12 else 1 %}
+  {% set next_year = year if month < 12 else year + 1 %}
+  <a href="/report?year={{ prev_year }}&month={{ prev_month }}" class="btn">← Previous</a>
+  <span class="month-label">{{ month_name }} {{ year }}</span>
+  <a href="/report?year={{ next_year }}&month={{ next_month }}" class="btn">Next →</a>
+</div>
+
+<!-- Print Header (visible only when printing) -->
+<div class="print-only print-header">
+  <h1>Expense Report — {{ month_name }} {{ year }}</h1>
+  <p>Generated: {{ today }}</p>
+</div>
+
+<!-- Summary Cards -->
+<div class="cards-grid report-cards">
+  <div class="card card-income">
+    <div class="card-label">Total Income</div>
+    <div class="card-balance balance-positive">{{ data.income_total | eur }}</div>
+  </div>
+  <div class="card card-expense">
+    <div class="card-label">Total Expenses</div>
+    <div class="card-balance balance-negative">{{ data.expense_total | eur }}</div>
+  </div>
+  <div class="card {% if data.net >= 0 %}card-income{% else %}card-expense{% endif %}">
+    <div class="card-label">Net (Income − Expenses)</div>
+    <div class="card-balance {% if data.net >= 0 %}balance-positive{% else %}balance-negative{% endif %}">
+      {{ data.net | eur }}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">Transfers (excluded from totals)</div>
+    <div class="card-balance">{{ data.transfer_total | eur }}</div>
+  </div>
+</div>
+
+<!-- Account Balances -->
+<div class="section">
+  <h2>Account Balances at End of {{ month_name }}</h2>
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr><th>Account</th><th>Type</th><th>Balance</th></tr>
+      </thead>
+      <tbody>
+        {% for acc in data.accounts %}
+        <tr>
+          <td><strong>{{ acc.label }}</strong></td>
+          <td>{{ acc.account_type.replace('_', ' ').title() }}</td>
+          <td class="{% if acc.account_type == 'credit_card' %}balance-owed{% elif acc.balance_cents < 0 %}balance-negative{% else %}balance-positive{% endif %}">
+            {{ acc.balance_cents | eur }}
+            {% if acc.account_type == 'credit_card' %}<span class="owed-badge">OWED</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Income by Category -->
+{% if data.income_by_cat %}
+<div class="section">
+  <h2>Income by Category</h2>
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead><tr><th>Category</th><th>Amount</th></tr></thead>
+      <tbody>
+        {% for cat, amount in data.income_by_cat.items() | sort(attribute='1', reverse=True) %}
+        <tr>
+          <td>{{ cat }}</td>
+          <td class="balance-positive">{{ amount | eur }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Expenses by Category -->
+{% if data.expense_by_cat %}
+<div class="section">
+  <h2>Expenses by Category</h2>
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead><tr><th>Category</th><th>Amount</th></tr></thead>
+      <tbody>
+        {% for cat, amount in data.expense_by_cat.items() | sort(attribute='1', reverse=True) %}
+        <tr>
+          <td>{{ cat }}</td>
+          <td class="balance-negative">{{ amount | eur }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Charts -->
+<div class="section charts-section">
+  <h2>Charts</h2>
+  <div class="charts-grid">
+    <div class="chart-box">
+      <h3>Income vs Expenses</h3>
+      <img src="/api/charts/income-expenses?year={{ year }}&month={{ month }}" alt="Income vs Expenses chart" class="chart-img">
+    </div>
+    <div class="chart-box">
+      <h3>Spending by Payment Method</h3>
+      <img src="/api/charts/spending-by-account?year={{ year }}&month={{ month }}" alt="Spending by account chart" class="chart-img">
+    </div>
+  </div>
+  <div class="chart-box chart-wide">
+    <h3>Expenses by Category</h3>
+    <img src="/api/charts/category-spending?year={{ year }}&month={{ month }}" alt="Expenses by category chart" class="chart-img">
+  </div>
+  <div class="chart-box chart-wide">
+    <h3>Daily Spending</h3>
+    <img src="/api/charts/daily-spending?year={{ year }}&month={{ month }}" alt="Daily spending chart" class="chart-img">
+  </div>
+</div>
+
+<!-- Detailed Transactions -->
+<div class="section">
+  <h2>All Transactions — {{ month_name }} {{ year }}</h2>
+  {% if data.transactions %}
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Amount</th>
+          <th>From</th>
+          <th>To</th>
+          <th>Category</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in data.transactions %}
+        <tr>
+          <td>{{ t.date }}</td>
+          <td><span class="badge badge-{{ t.transaction_type | lower }}">{{ t.transaction_type }}</span></td>
+          <td class="amount">{{ t.amount_cents | eur }}</td>
+          <td>{{ t.from_account_label or '—' }}</td>
+          <td>{{ t.to_account_label or '—' }}</td>
+          <td>{{ t.category_name or '—' }}</td>
+          <td>{{ t.description or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="totals-row">
+          <td colspan="2"><strong>Totals</strong></td>
+          <td><strong>{{ data.income_total | eur }} income / {{ data.expense_total | eur }} expenses</strong></td>
+          <td colspan="4"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted empty-state">No transactions in this period.</p>
+  {% endif %}
+</div>
+
+{% if data.transfer_total > 0 %}
+<div class="section">
+  <h2>Transfers (not counted as income or expenses)</h2>
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr><th>Date</th><th>Amount</th><th>From</th><th>To</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        {% for t in data.transactions if t.transaction_type == 'TRANSFER' %}
+        <tr>
+          <td>{{ t.date }}</td>
+          <td class="amount">{{ t.amount_cents | eur }}</td>
+          <td>{{ t.from_account_label or '—' }}</td>
+          <td>{{ t.to_account_label or '—' }}</td>
+          <td>{{ t.description or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

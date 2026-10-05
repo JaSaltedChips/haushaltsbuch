@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+{% block title %}Daily Entry — Expense Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Daily Entry</h1>
+  <p class="text-muted">Record a single transaction or paste your phone log for batch review.</p>
+</div>
+
+<div class="tabs" id="entry-tabs">
+  <button class="tab active" onclick="switchTab('single')">Single Transaction</button>
+  <button class="tab" onclick="switchTab('batch')">Batch Paste</button>
+</div>
+
+<!-- Single Transaction -->
+<div id="tab-single" class="tab-panel section">
+  <form id="single-form" onsubmit="submitSingle(event)">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Date <span class="required">*</span>
+          <input type="date" id="s-date" value="{{ today }}" required>
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Type <span class="required">*</span>
+          <select id="s-type" required onchange="updateAccountFields()">
+            <option value="EXPENSE">Expense</option>
+            <option value="INCOME">Income</option>
+            <option value="TRANSFER">Transfer</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Amount (EUR) <span class="required">*</span>
+          <input type="number" id="s-amount" step="0.01" min="0.01" required placeholder="0.00">
+        </label>
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group" id="from-group">
+        <label id="from-label">From Account (paying)
+          <select id="s-from">
+            <option value="">— None —</option>
+            {% for acc in accounts %}
+            <option value="{{ acc.id }}" data-type="{{ acc.account_type }}">
+              {{ acc.label }} ({{ acc.account_type.replace('_',' ') }})
+            </option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div class="form-group" id="to-group" style="display:none">
+        <label id="to-label">To Account (receiving)
+          <select id="s-to">
+            <option value="">— None —</option>
+            {% for acc in accounts %}
+            {% if acc.account_type != 'credit_card' %}
+            <option value="{{ acc.id }}" data-type="{{ acc.account_type }}">
+              {{ acc.label }} ({{ acc.account_type.replace('_',' ') }})
+            </option>
+            {% endif %}
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div class="form-group" id="cat-group">
+        <label>Category
+          <select id="s-category">
+            <option value="">— None —</option>
+            <optgroup label="Expense" id="opt-expense">
+              {% for cat in expense_cats %}<option value="{{ cat.id }}">{{ cat.name }}</option>{% endfor %}
+            </optgroup>
+            <optgroup label="Income" id="opt-income" style="display:none">
+              {% for cat in income_cats %}<option value="{{ cat.id }}">{{ cat.name }}</option>{% endfor %}
+            </optgroup>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Description
+        <input type="text" id="s-description" maxlength="200" placeholder="e.g. Weekly grocery run">
+      </label>
+    </div>
+
+    <div id="single-transfer-note" class="info-box hidden">
+      💡 Transfers move money between your accounts. A cash withdrawal (BANK → CASH), inter-bank transfer, or credit-card payment (BANK → CARD) are all transfers — not income or expenses.
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary btn-lg">Save Transaction</button>
+    </div>
+  </form>
+</div>
+
+<!-- Batch Paste -->
+<div id="tab-batch" class="tab-panel section hidden">
+  <div class="batch-format-box">
+    <strong>Format</strong> (pipe-delimited, one entry per line or separated by <code>;</code>):
+    <pre>DATE | TYPE | AMOUNT | FROM_ACCOUNT | TO_ACCOUNT | CATEGORY | DESCRIPTION</pre>
+    <strong>Examples:</strong>
+    <pre>2026-10-04 | EXPENSE  | 18.70  | CARD   | -      | Eating out | Lunch
+2026-10-04 | INCOME   | 3200   | -      | BANK-1 | Salary     | October salary
+2026-10-04 | TRANSFER | 50.00  | BANK-1 | CASH   | -          | ATM withdrawal</pre>
+    <p class="text-muted small">Use <code>-</code> for fields that don't apply. Account labels must match exactly (case-insensitive).</p>
+  </div>
+
+  <div class="form-group">
+    <label>Paste your phone log:
+      <textarea id="batch-input" rows="8" placeholder="Paste entries here..."></textarea>
+    </label>
+  </div>
+  <button class="btn btn-primary" onclick="previewBatch()">Preview Entries</button>
+
+  <!-- Preview area -->
+  <div id="batch-preview" class="hidden">
+    <h3>Review Before Saving</h3>
+    <p id="preview-summary" class="text-muted"></p>
+    <div id="preview-table-wrapper"></div>
+    <div class="form-actions">
+      <button class="btn btn-primary btn-lg" id="confirm-btn" onclick="confirmBatch()">Confirm &amp; Save</button>
+      <button class="btn" onclick="cancelBatch()">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['single','batch'][i]===name));
+  document.getElementById('tab-single').classList.toggle('hidden', name!=='single');
+  document.getElementById('tab-batch').classList.toggle('hidden', name!=='batch');
+}
+
+function updateAccountFields() {
+  const type = document.getElementById('s-type').value;
+  const fromGroup = document.getElementById('from-group');
+  const toGroup = document.getElementById('to-group');
+  const catGroup = document.getElementById('cat-group');
+  const note = document.getElementById('single-transfer-note');
+  const fromLabel = document.getElementById('from-label');
+  const toLabel = document.getElementById('to-label');
+  const optExpense = document.getElementById('opt-expense');
+  const optIncome = document.getElementById('opt-income');
+
+  // Reset to option displays
+  const toSelect = document.getElementById('s-to');
+  // Rebuild to-account options based on type
+  if (type === 'TRANSFER') {
+    // Show all accounts in to-select (including card, for payment)
+    Array.from(toSelect.options).forEach(o => o.style.display = '');
+  } else {
+    Array.from(toSelect.options).forEach(o => {
+      o.style.display = (o.dataset.type === 'credit_card') ? 'none' : '';
+    });
+  }
+
+  if (type === 'EXPENSE') {
+    fromGroup.style.display = '';
+    toGroup.style.display = 'none';
+    catGroup.style.display = '';
+    fromLabel.firstChild.textContent = 'From Account (paying)';
+    optExpense.style.display = ''; optIncome.style.display = 'none';
+    note.classList.add('hidden');
+  } else if (type === 'INCOME') {
+    fromGroup.style.display = 'none';
+    toGroup.style.display = '';
+    catGroup.style.display = '';
+    toLabel.firstChild.textContent = 'To Account (receiving)';
+    optExpense.style.display = 'none'; optIncome.style.display = '';
+    note.classList.add('hidden');
+  } else {
+    fromGroup.style.display = '';
+    toGroup.style.display = '';
+    catGroup.style.display = 'none';
+    fromLabel.firstChild.textContent = 'From Account (source)';
+    toLabel.firstChild.textContent = 'To Account (destination)';
+    note.classList.remove('hidden');
+  }
+}
+
+async function submitSingle(e) {
+  e.preventDefault();
+  const type = document.getElementById('s-type').value;
+  const amountCents = Math.round(parseFloat(document.getElementById('s-amount').value) * 100);
+  const fromId = document.getElementById('s-from').value || null;
+  const toId = document.getElementById('s-to').value || null;
+  const catId = document.getElementById('s-category').value || null;
+
+  const body = {
+    date: document.getElementById('s-date').value,
+    transaction_type: type,
+    amount_cents: amountCents,
+    from_account_id: fromId ? parseInt(fromId) : null,
+    to_account_id: toId ? parseInt(toId) : null,
+    category_id: catId ? parseInt(catId) : null,
+    description: document.getElementById('s-description').value.trim(),
+  };
+
+  const r = await fetch('/api/transactions', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+
+  if (r.ok) {
+    showToast('Transaction saved!', 'success');
+    document.getElementById('single-form').reset();
+    document.getElementById('s-date').value = document.getElementById('s-date').defaultValue;
+    updateAccountFields();
+  } else {
+    const d = await r.json();
+    showToast(d.detail || 'Error saving transaction', 'error');
+  }
+}
+
+let _previewData = null;
+
+async function previewBatch() {
+  const text = document.getElementById('batch-input').value.trim();
+  if (!text) { showToast('Please paste some entries first', 'error'); return; }
+
+  const r = await fetch('/api/transactions/batch/preview', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text}),
+  });
+  const data = await r.json();
+  _previewData = data.entries;
+  renderPreview(_previewData);
+}
+
+function renderPreview(entries) {
+  const ok = entries.filter(e => e.ok);
+  const bad = entries.filter(e => !e.ok);
+  document.getElementById('preview-summary').textContent =
+    `${entries.length} entries parsed: ${ok.length} valid, ${bad.length} invalid.`;
+
+  let html = '<table class="data-table preview-table"><thead><tr>' +
+    '<th>Include</th><th>Date</th><th>Type</th><th>Amount</th><th>From</th><th>To</th><th>Category</th><th>Description</th><th>Notes</th>' +
+    '</tr></thead><tbody>';
+
+  entries.forEach((entry, i) => {
+    if (entry.ok) {
+      const r = entry.resolved;
+      const dupNote = entry.duplicate_ids.length ? `⚠️ Possible duplicate (ID${entry.duplicate_ids.join(',')})` : '';
+      html += `<tr class="${dupNote ? 'row-warning' : ''}">
+        <td><input type="checkbox" class="include-cb" data-idx="${i}" checked></td>
+        <td>${r.date}</td>
+        <td><span class="badge badge-${r.transaction_type.toLowerCase()}">${r.transaction_type}</span></td>
+        <td>€${(r.amount_cents/100).toFixed(2)}</td>
+        <td>${r.from_account_id ? '✓' : '—'}</td>
+        <td>${r.to_account_id ? '✓' : '—'}</td>
+        <td>${r.category_id ? '✓' : '—'}</td>
+        <td>${r.description || '—'}</td>
+        <td class="${dupNote ? 'text-warning' : ''}">${dupNote || '✓'}</td>
+      </tr>`;
+    } else {
+      html += `<tr class="row-error">
+        <td><input type="checkbox" disabled></td>
+        <td colspan="7" class="error-raw">${escapeHtml(entry.raw)}</td>
+        <td class="text-danger">❌ ${escapeHtml(entry.error)}</td>
+      </tr>`;
+    }
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('preview-table-wrapper').innerHTML = html;
+  document.getElementById('batch-preview').classList.remove('hidden');
+  document.getElementById('confirm-btn').disabled = ok.length === 0;
+}
+
+async function confirmBatch() {
+  const checkboxes = document.querySelectorAll('.include-cb:checked');
+  const toSave = Array.from(checkboxes).map(cb => {
+    const idx = parseInt(cb.dataset.idx);
+    return _previewData[idx].resolved;
+  });
+  if (toSave.length === 0) { showToast('No entries selected', 'error'); return; }
+
+  const r = await fetch('/api/transactions/batch/save', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(toSave),
+  });
+  const result = await r.json();
+  if (result.errors.length === 0) {
+    showToast(`${result.saved.length} transactions saved!`, 'success');
+    document.getElementById('batch-input').value = '';
+    document.getElementById('batch-preview').classList.add('hidden');
+    _previewData = null;
+  } else {
+    showToast(`Saved ${result.saved.length}, ${result.errors.length} errors`, 'error');
+  }
+}
+
+function cancelBatch() {
+  document.getElementById('batch-preview').classList.add('hidden');
+  _previewData = null;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+updateAccountFields();
+</script>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Backup & Export — Expense Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Backup &amp; Export</h1>
+  <p class="text-muted">Export your data to CSV or download the SQLite database for backup.</p>
+</div>
+
+<div class="section">
+  <h2>Export Transactions to CSV</h2>
+  <p>Download all transactions as a comma-separated file you can open in Excel or LibreOffice Calc.</p>
+  <div class="form-row" style="margin-bottom:1rem">
+    <label>From Date
+      <input type="date" id="csv-from">
+    </label>
+    <label>To Date
+      <input type="date" id="csv-to">
+    </label>
+  </div>
+  <button class="btn btn-primary" onclick="exportCSV()">⬇ Download CSV</button>
+  <p class="text-muted small" style="margin-top:0.5rem">Leave dates blank to export all transactions.</p>
+</div>
+
+<div class="section">
+  <h2>Database Backup</h2>
+  <p>Download the complete SQLite database file. This contains all your transactions, accounts, and settings.</p>
+  <a href="/api/export/db" class="btn btn-primary" download>⬇ Download expense_monitor.db</a>
+
+  <div class="info-box" style="margin-top:1.5rem">
+    <h3>Database Location</h3>
+    <p>The live database is stored at:</p>
+    <code class="code-path">{{ settings.get('db_path', '&lt;app folder&gt;/data/expense_monitor.db') }}</code>
+    <p>You can copy this file to an external drive or cloud storage for backup.</p>
+  </div>
+
+  <div class="info-box warning-box" style="margin-top:1rem">
+    <h3>Restoring from Backup</h3>
+    <ol>
+      <li>Stop the app (<code>Ctrl+C</code> in the terminal).</li>
+      <li>Copy your backup <code>expense_monitor.db</code> into the <code>data/</code> folder, overwriting the existing file.</li>
+      <li>Restart the app.</li>
+    </ol>
+    <p>⚠️ Restoring overwrites your current data. Make a backup of the current database first if needed.</p>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Export Data as CSV Categories &amp; Accounts</h2>
+  <p>These links download supplemental reference data as CSV.</p>
+  <div class="export-links">
+    <a href="/api/export/csv?limit=100000" class="btn">All Transactions CSV</a>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function exportCSV() {
+  const from = document.getElementById('csv-from').value;
+  const to = document.getElementById('csv-to').value;
+  let url = '/api/export/csv?limit=100000';
+  if (from) url += `&date_from=${from}`;
+  if (to) url += `&date_to=${to}`;
+  window.location.href = url;
+}
+</script>
+{% endblock %}
