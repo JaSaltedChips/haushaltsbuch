@@ -17,6 +17,24 @@ Built with Python, FastAPI, and SQLite. All data stays on your PC.
 
 ---
 
+## Getting Started (after cloning)
+
+```
+setup.bat
+```
+Installs all dependencies into a local virtual environment. Run this once — requires internet.
+
+After that, two ways to launch:
+
+| Command | Database | Purpose |
+|---|---|---|
+| `run.bat` | `data/expense_monitor.db` | Your own fresh database |
+| `run_demo.bat` | `data/demo.db` | Pre-loaded September 2026 demo data |
+
+`run_demo.bat` creates `demo.db` automatically on first run if it does not exist — no extra steps needed.
+
+---
+
 ## Installation (one-time, requires internet)
 
 1. Install **Python 3.10+** from https://python.org if not already installed.
