@@ -131,6 +131,12 @@
     <h3>Daily Spending</h3>
     <img src="/api/charts/daily-spending?year={{ year }}&month={{ month }}" alt="Daily spending chart" class="chart-img">
   </div>
+  {% if data.income_by_cat or data.expense_by_cat %}
+  <div class="chart-box chart-wide no-print">
+    <h3>Income &amp; Expense Flow</h3>
+    <div id="sankey-chart" style="width:100%;height:440px;"></div>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Detailed Transactions -->
@@ -201,4 +207,88 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+{% if data.income_by_cat or data.expense_by_cat %}
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script>
+(function () {
+  var incomeByCat = {{ data.income_by_cat | tojson }};
+  var expenseByCat = {{ data.expense_by_cat | tojson }};
+
+  var incomeLabels = Object.keys(incomeByCat);
+  var expenseLabels = Object.keys(expenseByCat);
+
+  if (!incomeLabels.length && !expenseLabels.length) return;
+
+  // Nodes: income sources (0..n-1) | invisible hub (n) | expense categories (n+1..)
+  // The hub node is required by Plotly for routing but is made transparent so it
+  // doesn't appear as a visible block — only the income and expense nodes are shown.
+  var incomeIdx = incomeLabels.length;
+  var expenseStart = incomeIdx + 1;
+
+  var labels = incomeLabels.concat([""]).concat(expenseLabels);
+
+  var nodeColors = incomeLabels.map(function () { return "#16a34a"; })
+    .concat(["rgba(0,0,0,0)"])
+    .concat(expenseLabels.map(function () { return "#dc2626"; }));
+
+  var nodeCustomdata = incomeLabels.map(function (c) { return incomeByCat[c] / 100; })
+    .concat([null])
+    .concat(expenseLabels.map(function (c) { return expenseByCat[c] / 100; }));
+
+  // Pin income to left column, hub to centre, expenses to right column
+  var nodeX = incomeLabels.map(function () { return 0.01; })
+    .concat([0.5])
+    .concat(expenseLabels.map(function () { return 0.99; }));
+
+  var sources = [], targets = [], values = [], linkColors = [];
+
+  incomeLabels.forEach(function (cat, i) {
+    sources.push(i);
+    targets.push(incomeIdx);
+    values.push(incomeByCat[cat] / 100);
+    linkColors.push("rgba(22,163,74,0.35)");
+  });
+
+  expenseLabels.forEach(function (cat, j) {
+    sources.push(incomeIdx);
+    targets.push(expenseStart + j);
+    values.push(expenseByCat[cat] / 100);
+    linkColors.push("rgba(220,38,38,0.25)");
+  });
+
+  Plotly.newPlot("sankey-chart", [{
+    type: "sankey",
+    orientation: "h",
+    arrangement: "snap",
+    node: {
+      pad: 15,
+      thickness: 20,
+      line: { color: "#e2e8f0", width: 0.5 },
+      label: labels,
+      color: nodeColors,
+      x: nodeX,
+      customdata: nodeCustomdata,
+      hovertemplate: "%{label}<b>€%{customdata:,.2f}</b><extra></extra>"
+    },
+    link: {
+      source: sources,
+      target: targets,
+      value: values,
+      color: linkColors,
+      hovertemplate: "%{source.label} → %{target.label}<br><b>€%{value:,.2f}</b><extra></extra>"
+    }
+  }], {
+    font: { size: 12, family: "system-ui,-apple-system,sans-serif", color: "#1e293b" },
+    margin: { t: 10, b: 10, l: 10, r: 10 },
+    paper_bgcolor: "rgba(0,0,0,0)"
+  }, {
+    responsive: true,
+    displayModeBar: false
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

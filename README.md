@@ -156,6 +156,7 @@ scope of this app.
    - Account balances at end of month
    - Income and expense breakdowns by category
    - Charts: income vs expenses, spending by payment method, expenses by category, daily spending
+   - Income & expense flow (Sankey): income sources fan in on the left, expense categories fan out on the right — the visual width difference reflects savings or deficit
    - Full transaction table, with transfers listed separately
 4. To **save as PDF**: click the **Print / Save as PDF** button (or press `Ctrl+P`), then choose "Save as PDF" in the print dialog.
 
@@ -204,10 +205,10 @@ Tests cover:
 
 ## Offline Operation
 
-After running `setup.bat` once (requires internet), the app runs **fully offline**:
-- No CDN, no remote API, no cloud sync.
+After running `setup.bat` once (requires internet), the app runs **fully offline** with one exception:
 - All assets (Python libraries, CSS, JS) are installed locally.
 - Charts are generated server-side using matplotlib.
+- **Exception — Sankey chart:** the Income & Expense Flow chart on the Monthly Report page loads [Plotly.js](https://plotly.com/javascript/) from a CDN. It requires an internet connection to display; all other charts and features work offline.
 
 ---
 
@@ -230,6 +231,8 @@ After running `setup.bat` once (requires internet), the app runs **fully offline
 **Database locked:** Only one instance of the app should run at a time. Close other instances and retry.
 
 **Charts not showing:** matplotlib is required. Run `venv\Scripts\pip install matplotlib` if missing.
+
+**Sankey chart not showing:** The Income & Expense Flow chart requires an internet connection to load Plotly.js from a CDN. All other charts are unaffected.
 
 **Forgot PIN:** There is no recovery prompt by design. To reset the PIN:
 1. Stop the app.

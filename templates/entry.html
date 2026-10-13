@@ -56,11 +56,9 @@
           <select id="s-to">
             <option value="">— None —</option>
             {% for acc in accounts %}
-            {% if acc.account_type != 'credit_card' %}
             <option value="{{ acc.id }}" data-type="{{ acc.account_type }}">
               {{ acc.label }} ({{ acc.account_type.replace('_',' ') }})
             </option>
-            {% endif %}
             {% endfor %}
           </select>
         </label>
