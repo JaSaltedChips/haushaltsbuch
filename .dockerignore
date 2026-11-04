@@ -1,0 +1,12 @@
+**
+!requirements.txt
+!*.py
+!templates/
+!templates/**
+!static/
+!static/**
+!tests/
+!tests/**
+tests/**/__pycache__/
+!Dockerfile
+conftest.py

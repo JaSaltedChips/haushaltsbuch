@@ -1,0 +1,38 @@
+name: Cross-platform tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ['3.10', '3.12', '3.14']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -r requirements.txt
+      - run: python -m pytest tests -v
+      - name: Check POSIX launch scripts
+        if: runner.os != 'Windows'
+        run: sh -n setup.sh && sh -n run.sh && sh -n run_demo.sh
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker build --target test -t expense-monitor-tests .
+      - run: docker run --rm expense-monitor-tests
+      - run: docker compose up --build -d --wait
+      - run: curl --fail http://127.0.0.1:8000/login
+      - if: always()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down

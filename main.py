@@ -61,7 +61,7 @@ def startup():
 async def page_login(request: Request):
     with db.get_connection() as conn:
         settings = db.get_settings(conn)
-    return templates.TemplateResponse("login.html", {
+    return templates.TemplateResponse(request=request, name="login.html", context={
         "request": request,
         "pin_set": bool(settings.get("pin_hash")),
         "error": "",
@@ -73,7 +73,7 @@ async def page_login(request: Request):
 async def do_login(request: Request, pin: str = Form(...)):
     locked, secs = auth.check_lockout()
     if locked:
-        return templates.TemplateResponse("login.html", {
+        return templates.TemplateResponse(request=request, name="login.html", context={
             "request": request, "pin_set": True, "session_hours": auth.SESSION_HOURS,
             "error": f"Too many wrong attempts. Try again in {secs} second(s).",
         }, status_code=429)
@@ -85,7 +85,7 @@ async def do_login(request: Request, pin: str = Form(...)):
     # ── First run: no PIN set yet — treat POST as PIN setup ──────────────────
     if not pin_hash:
         if len(pin) < 4:
-            return templates.TemplateResponse("login.html", {
+            return templates.TemplateResponse(request=request, name="login.html", context={
                 "request": request, "pin_set": False, "session_hours": auth.SESSION_HOURS,
                 "error": "PIN must be at least 4 characters.",
             }, status_code=400)
@@ -103,7 +103,7 @@ async def do_login(request: Request, pin: str = Form(...)):
         locked, secs = auth.check_lockout()
         error = (f"Wrong PIN — too many attempts, wait {secs}s." if locked
                  else "Wrong PIN. Please try again.")
-        return templates.TemplateResponse("login.html", {
+        return templates.TemplateResponse(request=request, name="login.html", context={
             "request": request, "pin_set": True, "session_hours": auth.SESSION_HOURS,
             "error": error,
         }, status_code=401)
@@ -158,7 +158,7 @@ async def page_index(request: Request):
         accounts = db.get_accounts(conn)
         recent = db.get_transactions(conn, limit=10)
         settings = db.get_settings(conn)
-    return templates.TemplateResponse("index.html", {
+    return templates.TemplateResponse(request=request, name="index.html", context={
         "request": request,
         "accounts": accounts,
         "recent": recent,
@@ -174,7 +174,7 @@ async def page_setup(request: Request):
         expense_cats = db.get_categories(conn, "expense")
         income_cats = db.get_categories(conn, "income")
         settings = db.get_settings(conn)
-    return templates.TemplateResponse("setup.html", {
+    return templates.TemplateResponse(request=request, name="setup.html", context={
         "request": request,
         "accounts": accounts,
         "expense_cats": expense_cats,
@@ -190,7 +190,7 @@ async def page_entry(request: Request):
         expense_cats = db.get_categories(conn, "expense")
         income_cats = db.get_categories(conn, "income")
         settings = db.get_settings(conn)
-    return templates.TemplateResponse("entry.html", {
+    return templates.TemplateResponse(request=request, name="entry.html", context={
         "request": request,
         "accounts": accounts,
         "expense_cats": expense_cats,
@@ -207,7 +207,7 @@ async def page_transactions(request: Request):
         expense_cats = db.get_categories(conn, "expense")
         income_cats = db.get_categories(conn, "income")
         settings = db.get_settings(conn)
-    return templates.TemplateResponse("transactions.html", {
+    return templates.TemplateResponse(request=request, name="transactions.html", context={
         "request": request,
         "accounts": accounts,
         "expense_cats": expense_cats,
@@ -235,7 +235,7 @@ async def page_report(
 
     import calendar as cal
     month_name = cal.month_name[month]
-    return templates.TemplateResponse("report.html", {
+    return templates.TemplateResponse(request=request, name="report.html", context={
         "request": request,
         "data": data,
         "month_name": month_name,
@@ -250,7 +250,7 @@ async def page_report(
 async def page_export(request: Request):
     with db.get_connection() as conn:
         settings = db.get_settings(conn)
-    return templates.TemplateResponse("export.html", {"request": request, "settings": settings})
+    return templates.TemplateResponse(request=request, name="export.html", context={"request": request, "settings": settings})
 
 
 # ── API: Accounts ─────────────────────────────────────────────────────────────

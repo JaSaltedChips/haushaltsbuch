@@ -1,0 +1,14 @@
+services:
+  expense-monitor:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - expense-data:/app/data
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  expense-data:

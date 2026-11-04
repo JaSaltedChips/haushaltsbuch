@@ -19,45 +19,103 @@ The monthly report can be saved as a PDF directly from the browser using **Print
 
 ---
 
-## Getting Started (after cloning)
+## Cross-Platform Setup
 
-```
-setup.bat
-```
-Installs all dependencies into a local virtual environment. Run this once — requires internet.
+Two deployment options are provided for Windows, Linux (including Ubuntu 26.04
+LTS), and macOS. Initial installation requires internet access.
 
-After that, two ways to launch:
-
-| Command | Database | Purpose |
+| Option | Best for | Requirements |
 |---|---|---|
-| `run.bat` | `data/expense_monitor.db` | Your own fresh database |
-| `run_demo.bat` | `data/demo.db` | Pre-loaded September 2026 demo data |
+| **Docker Compose (recommended for deployment)** | A consistent Python runtime, isolated dependencies, and persistent storage independent of the host OS | Docker Engine with Compose v2 on Linux; Docker Desktop using Linux containers on Windows/macOS |
+| **Python venv** | Lightweight local use and development without a container service | Python 3.10+ with `venv` support |
 
-`run_demo.bat` creates `demo.db` automatically on first run if it does not exist — no extra steps needed.
+Docker uses Python 3.12 inside a Debian-based Linux image, even on Ubuntu 26.04;
+it does not depend on Ubuntu's system Python. A venv isolates Python packages,
+but still uses the host's Python version. Neither option encrypts your database.
 
----
+### Option A: Docker Compose
 
-## Installation (one-time, requires internet)
+Install Docker using the [official instructions](https://docs.docker.com/get-started/get-docker/).
+On Ubuntu, follow the [Docker Engine Ubuntu installation guide](https://docs.docker.com/engine/install/ubuntu/)
+and install the Compose plugin. Then, from this project folder:
 
-1. Install **Python 3.10+** from https://python.org if not already installed.
-2. Open a terminal in this folder.
-3. Run:
-   ```
-   setup.bat
-   ```
-   This creates a virtual environment and downloads all dependencies.
-
----
-
-## Running the App (offline)
-
-```
-run.bat
+```sh
+docker compose up --build -d --wait
 ```
 
-Open your browser at **http://127.0.0.1:8000**
+Open **http://127.0.0.1:8000** and choose your PIN. No host Python installation is
+needed. The container runs as a non-root user, with a single application worker
+because PIN sessions and login lockouts are stored in memory. The server listens
+on `0.0.0.0` inside the container, but Compose publishes it only on the host's
+`127.0.0.1`, not on your network. Keep that port mapping unchanged for private use.
 
-The app binds only to `127.0.0.1` (localhost) and is not accessible from other devices.
+```sh
+docker compose logs -f          # View logs; Ctrl+C exits log viewing
+docker compose stop            # Stop the app
+docker compose up -d --wait     # Start it again
+docker compose down            # Remove the container, keep the database volume
+docker compose up --build -d --wait  # Rebuild after application updates
+```
+
+The named volume `expense-data` stores `/app/data/expense_monitor.db` independently
+of the container. Docker usually prefixes the volume name with the project name.
+It is **not** the host's `data/` folder. An existing native database is not imported
+automatically. Never use `docker compose down -v` unless you intend to delete
+all container-stored transactions and the PIN. Keep external backups as well.
+
+To move an existing native database or restore a backup, first stop any native
+instance. Create the Compose container with `docker compose create` if needed,
+then run these commands from the project folder (replace the source path for a
+different backup):
+
+```sh
+docker compose stop
+docker compose cp ./data/expense_monitor.db expense-monitor:/app/data/expense_monitor.db
+docker compose run --rm --no-deps --user root expense-monitor chown expense:expense /app/data/expense_monitor.db
+docker compose up -d --wait
+```
+
+These commands replace the container database, including its PIN. Back up any
+existing container data first. Use the app's **Backup / Export** page to download
+a database backup on any OS. Restoring should use a backup downloaded by the app
+or a database copied while its source instance was stopped.
+
+### Option B: Native Python venv
+
+On **Ubuntu 26.04 LTS** (also applicable to other current Ubuntu versions), install
+Python and venv support:
+
+```sh
+sudo apt update
+sudo apt install python3 python3-venv python3-pip
+sh setup.sh
+sh run.sh
+```
+
+On **macOS**, install Python 3.10+ from https://python.org or your package manager,
+then run `sh setup.sh` and `sh run.sh`.
+
+On **Windows**, install Python 3.10+ from https://python.org, open a terminal in
+this project folder, and run `setup.bat`, then `run.bat`. In PowerShell, use
+`.\setup.bat` and `.\run.bat`.
+
+Setup installs dependencies into `venv/`; activation is not required by the launch
+scripts. On Linux/macOS, select a specific Python if desired with
+`PYTHON=python3.12 sh setup.sh`. Do not reuse or copy a venv between operating
+systems or Python versions; recreate it with setup instead.
+
+| Mode | Windows | Linux / macOS | Database |
+|---|---|---|---|
+| Personal | `run.bat` | `sh run.sh` | `data/expense_monitor.db` |
+| Demo | `run_demo.bat` | `sh run_demo.sh` (or `sh run.sh --demo`) | `data/demo.db` |
+
+Demo launchers create the sample September 2026 database on first run without
+changing your personal database. Native runs also open at
+**http://127.0.0.1:8000**, bound only to localhost. Stop with `Ctrl+C`.
+
+Only run one deployment at a time; the native app and Compose both use port 8000.
+The Docker image and native Ubuntu installation must still be validated on the
+target host; Windows-based checks alone do not certify an Ubuntu release.
 
 ---
 
@@ -90,7 +148,7 @@ lives in the `settings` table of `data/expense_monitor.db` under the key
 | Someone who opens `expense_monitor.db` directly with a SQLite viewer | **None** — the PIN protects the web interface only; the database file is **not encrypted** |
 
 **Recommendation:** if the PC is shared or contains sensitive balances, enable
-**Windows BitLocker** (or another full-disk encryption tool) on the drive that
+**Windows BitLocker**, **Linux LUKS**, or **macOS FileVault** on the drive that
 holds this folder. That protects the database file itself, which is outside the
 scope of this app.
 
@@ -164,17 +222,20 @@ scope of this app.
 
 ## Database Location and Backup
 
-The SQLite database is stored at:
+For native installations, the SQLite database is stored at:
 ```
 <app folder>/data/expense_monitor.db
 ```
+
+Docker installations store it in the named volume instead. Use the Docker backup
+and restore instructions above; deleting the container does not delete the volume.
 
 ### Backing Up
 - Go to **Backup / Export → Database Backup** and click **Download expense_monitor.db**.
 - Or copy `data/expense_monitor.db` to an external drive or cloud storage manually.
 
 ### Restoring from Backup
-1. Stop the app (`Ctrl+C` in the terminal).
+1. Stop the native app (`Ctrl+C` in the terminal).
 2. Copy your backup file to `data/expense_monitor.db` (replace existing file).
 3. Start the app again.
 
@@ -191,9 +252,20 @@ The SQLite database is stored at:
 
 ## Running Tests
 
-With the virtual environment active:
+Windows:
+```powershell
+.\venv\Scripts\python -m pytest tests -v
 ```
-venv\Scripts\pytest tests\ -v
+
+Linux / macOS:
+```sh
+venv/bin/python -m pytest tests -v
+```
+
+Docker (uses a temporary container without your personal database volume):
+```sh
+docker build --target test -t expense-monitor-tests .
+docker run --rm expense-monitor-tests
 ```
 
 Tests cover:
@@ -205,7 +277,7 @@ Tests cover:
 
 ## Offline Operation
 
-After running `setup.bat` once (requires internet), the app runs **fully offline** with one exception:
+After running setup or building the Docker image once (requires internet), the app runs **fully offline** with one exception:
 - All assets (Python libraries, CSS, JS) are installed locally.
 - Charts are generated server-side using matplotlib.
 - **Exception — Sankey chart:** the Income & Expense Flow chart on the Monthly Report page loads [Plotly.js](https://plotly.com/javascript/) from a CDN. It requires an internet connection to display; all other charts and features work offline.
@@ -224,13 +296,21 @@ After running `setup.bat` once (requires internet), the app runs **fully offline
 
 ## Troubleshooting
 
-**App won't start:** Make sure Python 3.10+ is installed and `setup.bat` was run.
+**Native app won't start:** Make sure Python 3.10+ is installed and the appropriate setup script was run.
 
-**"Module not found" error:** Activate the venv first: `venv\Scripts\activate`
+**"Module not found" error:** Run through the launch script, which selects the local venv. Re-run setup if dependencies are missing.
+
+**Ubuntu: `ensurepip` or `venv` unavailable:** Install `python3-venv` with apt, then run `sh setup.sh` again. For a non-default Python, install its matching venv package.
+
+**Shell script reports `\r` or a bad interpreter:** Re-check out the shell scripts with LF line endings. The repository's `.gitattributes` enforces LF for `*.sh`.
+
+**Docker won't start:** Verify `docker compose version` works and the Docker service/Desktop is running. On Linux, follow Docker's documented permission setup or run Docker commands with appropriate privileges. Inspect `docker compose logs` for startup errors.
+
+**Port 8000 is already in use:** Stop the other app instance. For Docker only, change the mapping to `127.0.0.1:8001:8000` and open http://127.0.0.1:8001.
 
 **Database locked:** Only one instance of the app should run at a time. Close other instances and retry.
 
-**Charts not showing:** matplotlib is required. Run `venv\Scripts\pip install matplotlib` if missing.
+**Charts not showing:** matplotlib is required. Re-run setup or rebuild the Docker image if dependencies are missing. No graphical desktop is needed on Linux.
 
 **Sankey chart not showing:** The Income & Expense Flow chart requires an internet connection to load Plotly.js from a CDN. All other charts are unaffected.
 
