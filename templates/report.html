@@ -230,9 +230,9 @@
 
   var labels = incomeLabels.concat([""]).concat(expenseLabels);
 
-  var nodeColors = incomeLabels.map(function () { return "#16a34a"; })
+  var nodeColors = incomeLabels.map(function () { return "#788c5d"; })
     .concat(["rgba(0,0,0,0)"])
-    .concat(expenseLabels.map(function () { return "#dc2626"; }));
+    .concat(expenseLabels.map(function () { return "#b5473a"; }));
 
   var nodeCustomdata = incomeLabels.map(function (c) { return incomeByCat[c] / 100; })
     .concat([null])
@@ -249,14 +249,14 @@
     sources.push(i);
     targets.push(incomeIdx);
     values.push(incomeByCat[cat] / 100);
-    linkColors.push("rgba(22,163,74,0.35)");
+    linkColors.push("rgba(120,140,93,0.40)");
   });
 
   expenseLabels.forEach(function (cat, j) {
     sources.push(incomeIdx);
     targets.push(expenseStart + j);
     values.push(expenseByCat[cat] / 100);
-    linkColors.push("rgba(220,38,38,0.25)");
+    linkColors.push("rgba(181,71,58,0.30)");
   });
 
   Plotly.newPlot("sankey-chart", [{
@@ -266,7 +266,7 @@
     node: {
       pad: 15,
       thickness: 20,
-      line: { color: "#e2e8f0", width: 0.5 },
+      line: { color: "#e5e2d6", width: 0.5 },
       label: labels,
       color: nodeColors,
       x: nodeX,
@@ -281,7 +281,7 @@
       hovertemplate: "%{source.label} → %{target.label}<br><b>€%{value:,.2f}</b><extra></extra>"
     }
   }], {
-    font: { size: 12, family: "system-ui,-apple-system,sans-serif", color: "#1e293b" },
+    font: { size: 12, family: "system-ui,-apple-system,sans-serif", color: "#29261b" },
     margin: { t: 10, b: 10, l: 10, r: 10 },
     paper_bgcolor: "rgba(0,0,0,0)"
   }, {

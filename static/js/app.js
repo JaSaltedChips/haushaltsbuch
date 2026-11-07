@@ -39,6 +39,29 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+/* ── Mobile Sidebar (hamburger menu) ─────────────────────────────────────── */
+
+(function () {
+  const toggle = document.getElementById('menu-toggle');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (!toggle || !sidebar || !backdrop) return;
+
+  function setOpen(open) {
+    sidebar.classList.toggle('open', open);
+    backdrop.classList.toggle('show', open);
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+
+  toggle.addEventListener('click', () => setOpen(!sidebar.classList.contains('open')));
+  backdrop.addEventListener('click', () => setOpen(false));
+  sidebar.addEventListener('click', (e) => { if (e.target.closest('a')) setOpen(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+  // Leaving mobile width (e.g. rotating a tablet) resets the menu state
+  window.matchMedia('(min-width: 769px)').addEventListener('change', (e) => { if (e.matches) setOpen(false); });
+})();
+
 /* ── Format Helpers ──────────────────────────────────────────────────────── */
 
 function formatEur(cents) {

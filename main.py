@@ -28,8 +28,22 @@ from tx_parser import parse_batch, resolve_entry, ParseError
 
 BASE_DIR = Path(__file__).parent
 
+class RevalidatingStaticFiles(StaticFiles):
+    """Static files that browsers must revalidate (ETag) before reuse.
+
+    Without a Cache-Control header, browsers such as iOS Safari may keep serving
+    a stale style.css/app.js after the app is updated. `no-cache` still allows
+    cheap 304 responses when nothing changed.
+    """
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 app = FastAPI(title="Expense Monitor", docs_url=None, redoc_url=None)
-app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+app.mount("/static", RevalidatingStaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 

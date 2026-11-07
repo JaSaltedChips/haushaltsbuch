@@ -10,8 +10,10 @@ matplotlib.use("Agg")  # non-interactive backend — must be before pyplot impor
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-PALETTE = ["#2563eb", "#16a34a", "#dc2626", "#ea580c", "#7c3aed",
-           "#0891b2", "#d97706", "#be123c", "#15803d", "#1d4ed8"]
+# Warm, Claude-style palette. Indices 0/1/2 carry meaning in the charts:
+# 0 = neutral/surplus (blue), 1 = income (green), 2 = expense/deficit (red).
+PALETTE = ["#6a9bcc", "#788c5d", "#b5473a", "#d97757", "#8a6fa8",
+           "#4f8f93", "#c9a227", "#9b4a6a", "#56703f", "#3f6c96"]
 
 
 def _cents_to_eur(cents: int) -> float:
@@ -124,6 +126,6 @@ def chart_spending_by_account(spending_by_acct: Dict[str, int]) -> bytes:
 
 def _empty_chart(message: str) -> bytes:
     fig, ax = plt.subplots(figsize=(6, 3))
-    ax.text(0.5, 0.5, message, ha="center", va="center", fontsize=12, color="#64748b", transform=ax.transAxes)
+    ax.text(0.5, 0.5, message, ha="center", va="center", fontsize=12, color="#6f6c62", transform=ax.transAxes)
     ax.axis("off")
     return _render_png(fig)

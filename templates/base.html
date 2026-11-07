@@ -8,6 +8,13 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+  <header class="mobile-bar no-print">
+    <button type="button" class="menu-toggle" id="menu-toggle"
+            aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">&#9776;</button>
+    <span class="mobile-title">💶 Expense Monitor</span>
+  </header>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
   <nav class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <span class="sidebar-logo">💶</span>
